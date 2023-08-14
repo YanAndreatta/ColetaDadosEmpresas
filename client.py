@@ -86,7 +86,7 @@ for place in all_places:
 
     name = place_details.get('name', 'N/A')
     address = place_details.get('formatted_address', 'N/A')
-    phone = place_details.get('formatted_phone_numver', 'N/A' )
+    phone = place_details.get('formatted_phone_number', 'N/A' )
 
     # Determina a categoria com base nos tipos de lugar
     types = place.get('types', [])
