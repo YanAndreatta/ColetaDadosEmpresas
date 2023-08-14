@@ -17,7 +17,7 @@ longitude = location.location_longitude() #Substitua pela sua longitude
 
 # Define o raio inicial em metros
 radius_increment = 1000
-max_radius = 5000
+max_radius = 10000
 
 # Lista para armazenas todos os lugares
 all_places = []
@@ -44,7 +44,7 @@ while current_radius <= max_radius:
         next_page_token = places_result['next_page_token']
 
         # Aguarda um pouco antes de solicitar a próxima página
-        time.sleep(5)
+        time.sleep(2)
 
         params['pagetoken'] = next_page_token
         response = requests.get(places_url, params=params)
@@ -73,26 +73,36 @@ wb = openpyxl.Workbook()
 ws = wb.active
 ws.append(['Nome da Empresa', 'Endereço', 'Número de Telefone', 'Categoria'])
 
+# Conjunto para armazenar IDs de lugares únicos
+unique_place_ids = set()
+
 for place in all_places:
     place_id = place['place_id']
-    place_details_url = f'{base_url}/details/json'
-    details_params = {
-        'place_id': place_id,
-        'fields': 'name,formatted_address,formatted_phone_number',
-        'key': api_key
-    }
-    details_response = requests.get(place_details_url, params=details_params)
-    place_details = details_response.json().get('result', {})
 
-    name = place_details.get('name', 'N/A')
-    address = place_details.get('formatted_address', 'N/A')
-    phone = place_details.get('formatted_phone_number', 'N/A' )
+    # Verifica se o lugar já foi processado para evitar duplicações
+    if place_id not in unique_place_ids:
+        unique_place_ids.add(place_id)
+   
+        place_details_url = f'{base_url}/details/json'
+        details_params = {
+            'place_id': place_id,
+            'fields': 'name,formatted_address,formatted_phone_number',
+            'key': api_key
+        }
+        details_response = requests.get(place_details_url, params=details_params)
+        place_details = details_response.json().get('result', {})
 
-    # Determina a categoria com base nos tipos de lugar
-    types = place.get('types', [])
-    category = ', '.join(types)
+        name = place_details.get('name', 'N/A')
+        address = place_details.get('formatted_address', 'N/A')
 
-    ws.append([name, address, phone, category])
+        # Acesso seguro para recuperar o número de telefone 
+        phone = place_details.get('formatted_phone_number', 'N/A' )
+
+        # Determina a categoria com base nos tipos de lugar
+        types = place.get('types', [])
+        category = ', '.join(types)
+
+        ws.append([name, address, phone, category])
 
 # Formata as colunas para ajustar automaticamente as larguras
 for column_cells in ws.columns:
