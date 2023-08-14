@@ -1,4 +1,4 @@
 . vscode
 *.xlsx
-.key
-.location
+key.py
+location.py
