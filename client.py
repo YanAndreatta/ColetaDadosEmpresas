@@ -103,6 +103,13 @@ for place_details in all_place_details:
     types = place_details.get('types', [])
     category = ', '.join(types)
 
+    # Acesso seguro para recuperar o número de telefone 
+    phone = place_details.get('formatted_phone_number', 'N/A' )
+
+    # Determina a categoria com base nos tipos de lugar
+    types = place.get('types', [])
+    category = ', '.join(types)
+
     ws.append([name, address, phone, category])
 
 # Formata as colunas para ajustar automaticamente as larguras
