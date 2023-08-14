@@ -1,14 +1,15 @@
 import os
 import time
-import googlemaps
 import openpyxl
 from datetime import datetime
+import requests
+
 import key
 import location
 
 # Substitua 'YOUR_API_KEY' pelo seu próprio chave de API do Google Maps
 api_key = key.key_pass()   # Substitua pela sua API_KEY
-gmaps = googlemaps.Client(key=api_key)
+base_url = 'https://maps.googleapis.com/maps/api/place' 
 
 # Define a localização central (latitude e longitude) da sua redondeza
 latitude = location.location_latitude()  #Substitua pela sua Latitude
@@ -25,30 +26,34 @@ current_radius = radius_increment
 
 while current_radius <= max_radius:
     # Faz a solicitação à API do Google Maps para empresas próximas
-    places_result = gmaps.places_nearby(
-        location=(latitude, longitude),
-        radius=current_radius,  # Raio em metros
-        #type='business'  # Tipo de lugares que você está buscando
-    )
+    places_url = f'{base_url}/nearbysearch/json'
+    params = {
+        'location': f'{latitude}, {longitude}',
+        'radius': current_radius,
+        #'type': 'establishment',
+        'key': api_key 
+    }
+    response = requests.get(places_url, params=params)
+    places_result = response.json()
 
-    all_places.extend(places_result['results'])
+    if 'results' in places_result:
+        all_places.extend(places_result['results'])
 
     # Verifica se há mais páginas de resultados
     while 'next_page_token' in places_result:
         next_page_token = places_result['next_page_token']
 
         # Aguarda um pouco antes de solicitar a próxima página
-        time.sleep(2)
+        time.sleep(5)
 
-        # Faz a solicitação para a próxima página
-        places_result = gmaps.places_nearby(
-            location=(latitude, longitude),
-            radius=current_radius,
-            #type='business'
-            page_token=next_page_token,
-        )
+        params['pagetoken'] = next_page_token
+        response = requests.get(places_url, params=params)
+        places_result = response.json()
 
-        all_places.extend(places_result['results'])
+        if 'results' in places_result:
+            all_places.extend(places_result['results'])
+        else:
+            break
 
         # Incrementa a distância em 1000 metros
         current_radius += radius_increment
@@ -68,11 +73,20 @@ wb = openpyxl.Workbook()
 ws = wb.active
 ws.append(['Nome da Empresa', 'Endereço', 'Número de Telefone', 'Categoria'])
 
-for place in places_result['results']:
-    place_details = gmaps.place(place['place_id'], fields=['name', 'formatted_address', 'formatted_phone_number'])
-    name = place_details['result']['name']
-    address = place_details['result'].get('formatted_address', 'N/A')
-    phone = place_details['result'].get('formatted_phone_number', 'N/A')
+for place in all_places:
+    place_id = place['place_id']
+    place_details_url = f'{base_url}/details/json'
+    details_params = {
+        'place_id': place_id,
+        'fields': 'name,formatted_address,formatted_phone_number',
+        'key': api_key
+    }
+    details_response = requests.get(place_details_url, params=details_params)
+    place_details = details_response.json().get('result', {})
+
+    name = place_details.get('name', 'N/A')
+    address = place_details.get('formatted_address', 'N/A')
+    phone = place_details.get('formatted_phone_numver', 'N/A' )
 
     # Determina a categoria com base nos tipos de lugar
     types = place.get('types', [])
