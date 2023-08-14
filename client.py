@@ -7,42 +7,51 @@ import key
 import location
 
 # Substitua 'YOUR_API_KEY' pelo seu próprio chave de API do Google Maps
-api_key = key.key_pass()
+api_key = key.key_pass()   # Substitua pela sua API_KEY
 gmaps = googlemaps.Client(key=api_key)
 
 # Define a localização central (latitude e longitude) da sua redondeza
-latitude =  location.location_latitude()
-longitude = location.location_longitude()
+latitude = location.location_latitude()  #Substitua pela sua Latitude
+longitude = location.location_longitude() #Substitua pela sua longitude
 
-# Define o número máximo de resultados por página
-results_per_page = 60
-
-# Faz a solicitação à API do Google Maps para empresas próximas
-places_result = gmaps.places_nearby(
-    location=(latitude, longitude),
-    radius=50000,  # Raio em metros
-    #type='business'  # Tipo de lugares que você está buscando
-)
+# Define o raio inicial em metros
+radius_increment = 1000
+max_radius = 5000
 
 # Lista para armazenas todos os lugares
-all_places = places_result['results']
+all_places = []
 
-# Verifica se há mais páginas de resultados e coleta todas as páginas
-while 'next_page_token' in places_result:
-    next_page_token = places_result['next_page_token']
+current_radius = radius_increment
 
-    # Aguarda um pouco antes de solicitar a próxima página
-    time.sleep(2)
-
-    # Faz a solicitação para a próxima página
+while current_radius <= max_radius:
+    # Faz a solicitação à API do Google Maps para empresas próximas
     places_result = gmaps.places_nearby(
         location=(latitude, longitude),
-        radius=50000,
-        #type='business'
-        page_token=next_page_token,
+        radius=current_radius,  # Raio em metros
+        #type='business'  # Tipo de lugares que você está buscando
     )
 
     all_places.extend(places_result['results'])
+
+    # Verifica se há mais páginas de resultados
+    while 'next_page_token' in places_result:
+        next_page_token = places_result['next_page_token']
+
+        # Aguarda um pouco antes de solicitar a próxima página
+        time.sleep(2)
+
+        # Faz a solicitação para a próxima página
+        places_result = gmaps.places_nearby(
+            location=(latitude, longitude),
+            radius=current_radius,
+            #type='business'
+            page_token=next_page_token,
+        )
+
+        all_places.extend(places_result['results'])
+
+        # Incrementa a distância em 1000 metros
+        current_radius += radius_increment
 
 # Obtém a data atual
 current_date = datetime.now().strftime('%Y-%m-%d')

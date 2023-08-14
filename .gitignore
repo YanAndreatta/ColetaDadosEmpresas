@@ -1,4 +1,5 @@
-. vscode
+.vscode
 *.xlsx
 key.py
 location.py
+__pycache__
