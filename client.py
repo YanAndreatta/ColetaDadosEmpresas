@@ -12,15 +12,15 @@ api_key = key.key_pass()   # Substitua pela sua API_KEY
 base_url = 'https://maps.googleapis.com/maps/api/place' 
 
 # Define a localização central (latitude e longitude) da sua redondeza
-latitude = location.location_latitude()  #Substitua pela sua Latitude
-longitude = location.location_longitude() #Substitua pela sua longitude
+latitude = location.location_latitude()  # Substitua pela sua Latitude
+longitude = location.location_longitude()  # Substitua pela sua longitude
 
 # Define o raio inicial em metros
-radius_increment = 1000
-max_radius = 5000
+radius_increment = 3000
+max_radius = 10000
 
-# Lista para armazenas todos os lugares
-all_places = []
+# Lista para armazenar IDs únicos de lugares
+all_place_ids = []
 
 current_radius = radius_increment
 
@@ -30,33 +30,54 @@ while current_radius <= max_radius:
     params = {
         'location': f'{latitude}, {longitude}',
         'radius': current_radius,
-        #'type': 'establishment',
-        'key': api_key 
+        # 'type': 'establishment',
+        'key': api_key
     }
     response = requests.get(places_url, params=params)
     places_result = response.json()
 
     if 'results' in places_result:
-        all_places.extend(places_result['results'])
+        for place in places_result['results']:
+            place_id = place['place_id']
+            if place_id not in all_place_ids:
+                all_place_ids.append(place_id)
 
     # Verifica se há mais páginas de resultados
     while 'next_page_token' in places_result:
         next_page_token = places_result['next_page_token']
 
         # Aguarda um pouco antes de solicitar a próxima página
-        time.sleep(5)
+        time.sleep(2)
 
         params['pagetoken'] = next_page_token
         response = requests.get(places_url, params=params)
         places_result = response.json()
 
         if 'results' in places_result:
-            all_places.extend(places_result['results'])
+            for place in places_result['results']:
+                place_id = place['place_id']
+                if place_id not in all_place_ids:
+                    all_place_ids.append(place_id)
         else:
             break
 
-        # Incrementa a distância em 1000 metros
-        current_radius += radius_increment
+    # Incrementa a distância em 1000 metros
+    current_radius += radius_increment
+
+# Lista para armazenar detalhes de todos os lugares
+all_place_details = []
+
+# Fetch details for each place
+for place_id in all_place_ids:
+    place_details_url = f'{base_url}/details/json'
+    details_params = {
+        'place_id': place_id,
+        'fields': 'name,formatted_address,formatted_phone_number',
+        'key': api_key
+    }
+    details_response = requests.get(place_details_url, params=details_params)
+    place_details = details_response.json().get('result', {})
+    all_place_details.append(place_details)
 
 # Obtém a data atual
 current_date = datetime.now().strftime('%Y-%m-%d')
@@ -73,23 +94,13 @@ wb = openpyxl.Workbook()
 ws = wb.active
 ws.append(['Nome da Empresa', 'Endereço', 'Número de Telefone', 'Categoria'])
 
-for place in all_places:
-    place_id = place['place_id']
-    place_details_url = f'{base_url}/details/json'
-    details_params = {
-        'place_id': place_id,
-        'fields': 'name,formatted_address,formatted_phone_number',
-        'key': api_key
-    }
-    details_response = requests.get(place_details_url, params=details_params)
-    place_details = details_response.json().get('result', {})
-
+for place_details in all_place_details:
     name = place_details.get('name', 'N/A')
     address = place_details.get('formatted_address', 'N/A')
-    phone = place_details.get('formatted_phone_numver', 'N/A' )
+    phone = place_details.get('formatted_phone_number', 'N/A' )
 
     # Determina a categoria com base nos tipos de lugar
-    types = place.get('types', [])
+    types = place_details.get('types', [])
     category = ', '.join(types)
 
     ws.append([name, address, phone, category])
